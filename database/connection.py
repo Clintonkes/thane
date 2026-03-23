@@ -5,8 +5,11 @@ Supports both SQLite (development) and PostgreSQL (production).
 """
 
 import os
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 
@@ -51,8 +54,9 @@ def init_db():
     Creates all tables defined in models if they don't exist.
     """
     import database.models as models
+    logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
-    print("Database tables initialized successfully!")
+    logger.info("Database tables initialized successfully!")
 
 
 def get_db():

@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { ChatWidget } from "@/components/ChatWidget";
 import { NotificationProvider } from "@/components/NotificationProvider";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "Thanesgaylerental Properties LLC | Professional Trucking & Logistics",
@@ -21,11 +22,13 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen flex flex-col">
         <NotificationProvider>
-          <Navbar />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-          <ChatWidget />
-          <WhatsAppButton />
+          <ToastProvider>
+            <Navbar />
+            <main className="flex-grow">{children}</main>
+            <Footer />
+            <ChatWidget />
+            <WhatsAppButton />
+          </ToastProvider>
         </NotificationProvider>
       </body>
     </html>

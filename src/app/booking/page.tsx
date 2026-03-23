@@ -5,8 +5,10 @@ import Image from "next/image";
 import { Truck, Send, CheckCircle, MapPin, Package, Calendar, Phone, Mail, User, Loader2 } from "lucide-react";
 import { createOrder } from "@/lib/api";
 import { ScrollReveal } from "@/hooks/useAnimations";
+import { useToast } from "@/components/Toast";
 
 export default function BookingPage() {
+  const { showToast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
@@ -50,9 +52,10 @@ export default function BookingPage() {
       const response = await createOrder(orderData);
       setOrderNumber(response.order_number);
       setIsSubmitted(true);
-    } catch (error) {
+      showToast("Order submitted successfully!", "success");
+    } catch (error: any) {
       console.error("Error creating order:", error);
-      alert("Failed to submit order. Please try again.");
+      showToast(error.message || "Failed to submit order. Please check your connection.", "error");
     } finally {
       setIsLoading(false);
     }

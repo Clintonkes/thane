@@ -1,22 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Truck, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { adminLogin, isAdminAuthenticated } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Check if already logged in
-  if (typeof window !== "undefined" && isAdminAuthenticated()) {
-    router.push("/admin");
+  // Check if already logged in - use useEffect to avoid render-time redirect
+  useEffect(() => {
+    if (typeof window !== "undefined" && isAdminAuthenticated()) {
+      router.push("/admin");
+    } else {
+      setIsCheckingAuth(false);
+    }
+  }, [router]);
+
+  if (isCheckingAuth) {
     return null;
   }
 
@@ -27,9 +37,12 @@ export default function AdminLoginPage() {
 
     try {
       await adminLogin(username, password);
+      showToast("Successfully logged in", "success");
       router.push("/admin");
     } catch (err: any) {
-      setError(err.message || "Invalid username or password");
+      const msg = err.message || "Invalid username or password";
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setIsLoading(false);
     }

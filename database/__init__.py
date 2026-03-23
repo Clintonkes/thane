@@ -16,6 +16,7 @@ from .models import (
     ServiceArea,
     Admin,
     AdminSession,
+    LoginAttempt,
     Base
 )
 
@@ -35,5 +36,6 @@ __all__ = [
     "ServiceArea",
     "Admin",
     "AdminSession",
+    "LoginAttempt",
     "Base"
 ]

@@ -374,3 +374,34 @@ class AdminSession(Base):
     
     def __repr__(self):
         return f"<AdminSession {self.token[:10]}...>"
+
+
+# Login attempt tracking for security
+class LoginAttempt(Base):
+    """
+    LoginAttempt Model - Tracks login attempts and blocked IPs
+    """
+    __tablename__ = "login_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # User Information
+    username = Column(String(100), index=True)
+    email = Column(String(255), index=True)
+    
+    # IP Information
+    ip_address = Column(String(50), index=True)
+    user_agent = Column(String(500))
+    
+    # Attempt Details
+    success = Column(Boolean, default=False)
+    is_blocked = Column(Boolean, default=False)
+    failure_reason = Column(String(255))
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    def __repr__(self):
+        if self.is_blocked:
+            return f"<LoginAttempt BLOCKED {self.ip_address}>"
+        return f"<LoginAttempt {'SUCCESS' if self.success else 'FAILED'} {self.username} from {self.ip_address}>"
