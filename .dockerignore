@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+.env*.local
+.vercel
+api/venv
+api/__pycache__
+__pycache__
+*.pyc
+.git
+.gitignore
+.dockerignore
+README.md
