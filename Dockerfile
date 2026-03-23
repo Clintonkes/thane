@@ -8,10 +8,16 @@
 # Run:   docker run -p 8000:8000 thanesgaylerental-api
 # ===================================================================
 
-# Use Python 3.11 as base image (latest stable)
-FROM python:3.11-slim
+# Stage 1: Build the Next.js frontend
+FROM node:20-slim AS frontend-builder
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-# Set working directory
+# Stage 2: Final image with Python backend and static frontend
+FROM python:3.11-slim
 WORKDIR /app
 
 # Set environment variables
@@ -20,32 +26,33 @@ ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 ENV ENVIRONMENT=production
 
-# Install system dependencies for psycopg2
+# Install system dependencies for psycopg2 and healthcheck
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
+# Copy backend requirements and install
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy all application code (including backend)
 COPY . .
+
+# Copy the built frontend from Stage 1
+COPY --from=frontend-builder /app/out ./out
 
 # Expose the port Railway will use
 EXPOSE 8000
 
-# Health check endpoint (Railway handles this based on railway.json)
-# But we can keep an internal one for Docker if needed
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests, os; port = os.getenv('PORT', '8000'); requests.get(f'http://localhost:{port}/api/health')" || exit 1
+# Health check endpoint
+# Use curl for more reliability in slim image
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/api/health || exit 1
 
 # Run the application
-# Railway automatically sets the PORT environment variable
 # Use shell form to allow environment variable expansion
 CMD python -m uvicorn api.main:app --host 0.0.0.0 --port $PORT
 

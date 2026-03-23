@@ -35,8 +35,10 @@ except ImportError:
     pass
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 
 # Database imports
 from database.connection import init_db
@@ -132,13 +134,14 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+
 # ============== API Routes ==============
 
-@app.get("/")
-async def root():
-    """Root endpoint - API information"""
+@app.get("/api")
+async def api_root():
+    """API information endpoint"""
     return {
-        "message": "Welcome to Thanesgaylerental API",
+        "message": "Thanesgaylerental API",
         "version": "1.0.0",
         "docs": "/api/docs",
         "health": "/api/health"
@@ -159,6 +162,52 @@ app.include_router(trucks.router)
 app.include_router(contact.router)
 app.include_router(reviews.router)
 app.include_router(admin.router)
+
+# ============== Serve Frontend (Static Files) ==============
+
+# Define the path to the frontend built files (Next.js out directory)
+FRONTEND_PATH = PROJECT_ROOT / "out"
+
+# Mount the static files (for css, js, images, etc.)
+if FRONTEND_PATH.exists():
+    app.mount("/_next", StaticFiles(directory=str(FRONTEND_PATH / "_next")), name="next_static")
+    
+    # Static files mount for images and other assets
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_PATH / "static")), name="static")
+    
+    # Catch-all route to serve the frontend for any other path (except /api)
+    @app.get("/{rest_of_path:path}")
+    async def serve_frontend(rest_of_path: str):
+        # If the path starts with api/, ignore it (let routers handle it)
+        if rest_of_path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"detail": "API endpoint not found"})
+            
+        # Try to serve a specific file if it exists (e.g., /about/index.html)
+        file_path = FRONTEND_PATH / rest_of_path
+        if rest_of_path and file_path.is_file():
+            return FileResponse(str(file_path))
+            
+        # Special handling for Next.js trailing slash static pages
+        # If it's a directory, look for index.html inside
+        if rest_of_path:
+            dir_index = FRONTEND_PATH / rest_of_path / "index.html"
+            if dir_index.is_file():
+                return FileResponse(str(dir_index))
+        
+        # Default to the root index.html for client-side routing
+        return FileResponse(str(FRONTEND_PATH / "index.html"))
+else:
+    logger.warning(f"Frontend path {FRONTEND_PATH} NOT found. Frontend will not be served.")
+    
+    @app.get("/")
+    async def root():
+        """Root endpoint - API information (Fallback only)"""
+        return {
+            "message": "Welcome to Thanesgaylerental API (Frontend not built)",
+            "version": "1.0.0",
+            "docs": "/api/docs",
+            "health": "/api/health"
+        }
 
 # Run the app directly if this file is executed
 if __name__ == "__main__":
