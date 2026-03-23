@@ -8,8 +8,7 @@
     "numReplicas": 1,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
-    "healthcheckPath": "/api/health",
-    "healthcheckPort": 8000
+    "healthcheckPath": "/api/health"
   },
   "env": {
     "DATABASE_URL": {

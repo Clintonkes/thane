@@ -39,13 +39,15 @@ COPY . .
 # Expose the port Railway will use
 EXPOSE 8000
 
-# Health check endpoint
+# Health check endpoint (Railway handles this based on railway.json)
+# But we can keep an internal one for Docker if needed
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/api/health')" || exit 1
+    CMD python -c "import requests, os; port = os.getenv('PORT', '8000'); requests.get(f'http://localhost:{port}/api/health')" || exit 1
 
 # Run the application
 # Railway automatically sets the PORT environment variable
-CMD ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use shell form to allow environment variable expansion
+CMD python -m uvicorn api.main:app --host 0.0.0.0 --port $PORT
 
 
 # ===================================================================
