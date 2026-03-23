@@ -170,10 +170,16 @@ FRONTEND_PATH = PROJECT_ROOT / "out"
 
 # Mount the static files (for css, js, images, etc.)
 if FRONTEND_PATH.exists():
-    app.mount("/_next", StaticFiles(directory=str(FRONTEND_PATH / "_next")), name="next_static")
-    
-    # Static files mount for images and other assets
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_PATH / "static")), name="static")
+    # Mount /_next (always produced by Next.js static export)
+    _next_path = FRONTEND_PATH / "_next"
+    if _next_path.exists():
+        app.mount("/_next", StaticFiles(directory=str(_next_path)), name="next_static")
+
+    # Mount /static only if the directory exists (not always produced)
+    _static_path = FRONTEND_PATH / "static"
+    if _static_path.exists():
+        app.mount("/static", StaticFiles(directory=str(_static_path)), name="static")
+
     
     # Catch-all route to serve the frontend for any other path (except /api)
     @app.get("/{rest_of_path:path}")
