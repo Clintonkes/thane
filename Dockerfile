@@ -11,7 +11,10 @@
 # Stage 1: Build the Next.js frontend
 FROM node:20-slim AS frontend-builder
 WORKDIR /app
-COPY package.json package-lock.json* ./
+
+# Remove any corrupted lockfiles first
+RUN rm -f package-lock.json
+COPY package.json ./
 RUN npm install
 COPY . .
 RUN npm run build
