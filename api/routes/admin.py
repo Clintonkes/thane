@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 
 from database.connection import SessionLocal, get_db
-from database.models import Admin, AdminSession, Order, OrderStatus, LoginAttempt
+from database.models import Admin, AdminSession, Order, OrderStatus, Truck, TruckStatus, LoginAttempt
 from database.schemas import AdminLogin, AdminResponse, AdminToken, AdminRegister, OrderResponse
 from api.auth import hash_password, verify_password, create_admin_token, get_current_admin
 from api.services.email import email_service
@@ -265,14 +265,43 @@ async def update_order_status(
         raise HTTPException(status_code=404, detail="Order not found")
     
     previous_status = order.status.value
+    previous_truck_id = order.assigned_truck_id
     
     try:
         order.status = OrderStatus(new_status)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid status")
     
+    # Handle truck assignment and status updates
+    truck_to_update = None
+    
     if assigned_truck_id:
         order.assigned_truck_id = assigned_truck_id
+        # If assigning a new truck, set it to in_use
+        new_truck = db.query(Truck).filter(Truck.id == assigned_truck_id).first()
+        if new_truck:
+            new_truck.status = TruckStatus.IN_USE
+            truck_to_update = new_truck
+    
+    # Handle truck status based on order status changes
+    if new_status == "completed" or new_status == "cancelled":
+        # When order is completed or cancelled, free up the truck
+        if previous_truck_id:
+            truck = db.query(Truck).filter(Truck.id == previous_truck_id).first()
+            if truck:
+                truck.status = TruckStatus.AVAILABLE
+    elif new_status == "in_progress" and previous_status in ["assigned", "pending"]:
+        # When order goes en-route, ensure truck is in use
+        if order.assigned_truck_id:
+            truck = db.query(Truck).filter(Truck.id == order.assigned_truck_id).first()
+            if truck:
+                truck.status = TruckStatus.IN_USE
+    elif new_status == "assigned":
+        # When order is marked as assigned, set truck to in_use
+        if order.assigned_truck_id:
+            truck = db.query(Truck).filter(Truck.id == order.assigned_truck_id).first()
+            if truck:
+                truck.status = TruckStatus.IN_USE
     
     order.updated_at = datetime.utcnow()
     db.commit()
@@ -359,12 +388,13 @@ async def get_dashboard_stats(
     # Order stats
     total_orders = db.query(Order).count()
     pending_orders = db.query(Order).filter(Order.status == OrderStatus.PENDING).count()
+    assigned_orders = db.query(Order).filter(Order.status == OrderStatus.ASSIGNED).count()
     in_progress_orders = db.query(Order).filter(Order.status == OrderStatus.IN_PROGRESS).count()
     completed_orders = db.query(Order).filter(Order.status == OrderStatus.COMPLETED).count()
     cancelled_orders = db.query(Order).filter(Order.status == OrderStatus.CANCELLED).count()
     
     # Customer stats
-    unique_customers = db.query(Order.customer_email).distinct().count()
+    unique_customers = db.query(Order.email).distinct().count()
     
     # Contact messages
     unread_messages = db.query(ContactMessage).filter(ContactMessage.is_read == False).count()
@@ -384,6 +414,7 @@ async def get_dashboard_stats(
         "orders": {
             "total": total_orders,
             "pending": pending_orders,
+            "assigned": assigned_orders,
             "in_progress": in_progress_orders,
             "completed": completed_orders,
             "cancelled": cancelled_orders
@@ -415,14 +446,14 @@ async def get_customers(
     # Get unique customers from orders
     customers = db.query(
         Order.customer_name,
-        Order.customer_email,
-        Order.customer_phone,
+        Order.email.label('customer_email'),
+        Order.phone.label('customer_phone'),
         func.count(Order.id).label('order_count'),
         func.max(Order.created_at).label('last_order_date')
     ).group_by(
         Order.customer_name,
-        Order.customer_email,
-        Order.customer_phone
+        Order.email,
+        Order.phone
     ).order_by(func.max(Order.created_at).desc()).offset(skip).limit(limit).all()
     
     return [
@@ -516,6 +547,25 @@ async def mark_message_read(
     db.commit()
     
     return {"message": "Message marked as read"}
+
+
+@router.delete("/messages/{message_id}")
+async def delete_message(
+    message_id: int,
+    admin: Admin = Depends(get_current_admin),
+    db: SessionLocal = Depends(get_db)
+):
+    """Delete a contact message"""
+    from database.models import ContactMessage
+    
+    message = db.query(ContactMessage).filter(ContactMessage.id == message_id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    db.delete(message)
+    db.commit()
+    
+    return {"message": "Message deleted successfully"}
 
 
 @router.delete("/security/unblock/{ip_address}")

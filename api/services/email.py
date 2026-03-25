@@ -8,9 +8,10 @@ Supports multiple email backends:
 - SendGrid API (optional)
 
 Configure via environment variables:
-- EMAIL_BACKEND: "console" (default), "smtp", "sendgrid"
+- EMAIL_BACKEND: "console" (default), "smtp", "sendgrid", "resend"
 - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD (for SMTP)
 - SENDGRID_API_KEY (for SendGrid)
+- RESEND_API_KEY (for Resend)
 - FROM_EMAIL: Default sender email address
 - FROM_NAME: Default sender name
 """
@@ -22,6 +23,16 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional, Dict, Any
 from datetime import datetime
+from pathlib import Path
+
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    # Find .env in project root
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    load_dotenv(env_path)
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +41,23 @@ class EmailService:
     """Email service for sending order notifications"""
     
     def __init__(self):
-        self.backend = os.getenv("EMAIL_BACKEND", "console")
-        self.from_email = os.getenv("FROM_EMAIL", "orders@thanesgaylerental.com")
-        self.from_name = os.getenv("FROM_NAME", "Thanesgaylerental")
+        # Helper to get env var and strip quotes/comments
+        def get_clean_env(key, default=""):
+            val = os.getenv(key, default)
+            if not val:
+                return default
+            # Strip inline comments (everything after #)
+            val = val.split('#')[0].strip()
+            # Strip quotes
+            return val.replace('"', '').replace("'", "").strip()
+
+        self.backend = get_clean_env("EMAIL_BACKEND", "console").lower()
+        self.from_email = get_clean_env("FROM_EMAIL", "orders@thanesgaylerental.com")
+        self.from_name = get_clean_env("FROM_NAME", "Thanesgaylerental Properties LLC")
+        
+        # Log which backend is active on initialization
+        logger.info(f"EmailService initialized with backend: {self.backend}")
+        logger.info(f"EmailService sender configured as: {self.from_name} <{self.from_email}>")
         
     def _send_via_smtp(self, to_email: str, subject: str, html_content: str) -> bool:
         """Send email via SMTP"""
@@ -119,12 +144,55 @@ class EmailService:
             logger.error(f"Failed to send via SendGrid: {e}")
             return False
     
+    def _send_via_resend(self, to_email: str, subject: str, html_content: str) -> bool:
+        """Send email via Resend API"""
+        try:
+            import requests
+            
+            raw_key = os.getenv("RESEND_API_KEY")
+            if not raw_key:
+                logger.warning("Resend API key not configured, falling back to console")
+                return self._send_via_console(to_email, subject, html_content)
+            
+            # Strip quotes/whitespace/comments
+            api_key = raw_key.split('#')[0].strip().replace('"', '').replace("'", "").strip()
+            
+            url = "https://api.resend.com/emails"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "from": f"{self.from_name} <{self.from_email}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content
+            }
+            
+            response = requests.post(url, headers=headers, json=data, timeout=10)
+            
+            if response.status_code in [200, 201, 202, 204]:
+                logger.info(f"Email sent via Resend to {to_email}")
+                return True
+            else:
+                logger.error(f"Resend error: {response.status_code} - {response.text}")
+                return False
+                
+        except ImportError:
+            logger.warning("requests library not available, falling back to console")
+            return self._send_via_console(to_email, subject, html_content)
+        except Exception as e:
+            logger.error(f"Failed to send via Resend: {e}")
+            return False
+    
     def send_email(self, to_email: str, subject: str, html_content: str) -> bool:
         """Send email using configured backend"""
         if self.backend == "smtp":
             return self._send_via_smtp(to_email, subject, html_content)
         elif self.backend == "sendgrid":
             return self._send_via_sendgrid(to_email, subject, html_content)
+        elif self.backend == "resend":
+            return self._send_via_resend(to_email, subject, html_content)
         else:
             return self._send_via_console(to_email, subject, html_content)
     
@@ -151,69 +219,58 @@ class EmailService:
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Order Confirmation</title>
         </head>
-        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 28px;">Order Confirmed! ✓</h1>
-                <p style="color: #cce4ff; margin: 10px 0 0 0; font-size: 16px;">Thank you for choosing Thanesgaylerental</p>
+        <body style="font-family: 'Inter', 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f8fafc;">
+            <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 40px 20px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.025em;">Order Confirmed!</h1>
+                <p style="color: #bfdbfe; margin: 12px 0 0 0; font-size: 18px; font-weight: 500;">Thank you for choosing Thanesgaylerental Properties LLC</p>
             </div>
             
-            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid #e9ecef; border-top: none;">
-                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;">
-                    <h2 style="margin: 0 0 10px 0; color: #28a745; font-size: 20px;">Order Number</h2>
-                    <p style="margin: 0; font-size: 32px; font-weight: bold; color: #1e3a5f; letter-spacing: 2px;">{order.get('order_number', 'N/A')}</p>
-                    <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 14px;">Please save this number for tracking your order</p>
+            <div style="padding: 30px; background-color: #ffffff; border-radius: 0 0 16px 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="background: #eff6ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #dbeafe; text-align: center;">
+                    <h2 style="margin: 0 0 8px 0; color: #1e3a8a; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Order Number</h2>
+                    <p style="margin: 0; font-size: 36px; font-weight: 800; color: #f97316; letter-spacing: 1px;">{order.get('order_number', 'N/A')}</p>
+                    <p style="margin: 12px 0 0 0; color: #64748b; font-size: 14px;">Save this for tracking your shipment</p>
                 </div>
                 
-                <h3 style="color: #1e3a5f; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-bottom: 20px;">Order Details</h3>
+                <h3 style="color: #0f172a; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 24px; font-size: 20px; font-weight: 700;">Shipment Details</h3>
                 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600; width: 40%;">Customer Name</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333; font-weight: 500;">{order.get('customer_name', 'N/A')}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600; width: 40%;">Customer</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 500;">{order.get('customer_name', 'N/A')}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Email</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333;">{order.get('email', 'N/A')}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600;">Pickup</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 500;">{order.get('pickup_location', 'N/A')}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Phone</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333;">{order.get('phone', 'N/A')}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600;">Delivery</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 500;">{order.get('delivery_location', 'N/A')}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Pickup Location</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333; font-weight: 500;">{order.get('pickup_location', 'N/A')}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600;">Goods Type</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a;">{order.get('goods_type', 'N/A')}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Delivery Location</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333; font-weight: 500;">{order.get('delivery_location', 'N/A')}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Goods Type</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333;">{order.get('goods_type', 'N/A')}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Cargo Weight</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333;">{order.get('cargo_weight', 'Not specified')}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Preferred Date</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333;">{preferred_date or 'Not specified'}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600;">Preferred Date</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a;">{preferred_date or 'Not specified'}</td>
                     </tr>
                 </table>
                 
-                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
-                    <strong style="color: #856404;">📋 Status: Pending</strong>
-                    <p style="margin: 5px 0 0 0; color: #856404; font-size: 14px;">Your order is currently pending and will be processed shortly.</p>
+                <div style="background: #fff7ed; padding: 20px; border-radius: 12px; border-left: 4px solid #f97316; margin-bottom: 32px;">
+                    <p style="margin: 0; color: #9a3412; font-weight: 700; font-size: 16px;">Status: Pending Processing</p>
+                    <p style="margin: 8px 0 0 0; color: #c2410c; font-size: 14px; line-height: 1.5;">Our team has received your order and will begin processing it shortly. You will receive further updates as the shipment progresses.</p>
                 </div>
                 
-                <p style="color: #6c757d; font-size: 14px; text-align: center; margin-top: 30px;">
-                    You can track your order status using your order number at any time on our website.
-                </p>
+                <div style="text-align: center;">
+                    <a href="#" style="display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; transition: background-color 0.2s;">Track My Order</a>
+                </div>
                 
-                <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e9ecef;">
-                    <p style="color: #6c757d; font-size: 12px; margin: 0;">
-                        © 2024 Thanesgaylerental. All rights reserved.<br>
-                        Professional Trucking & Logistics Services
+                <div style="text-align: center; margin-top: 48px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                    <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.6;">
+                        <strong>Thanesgaylerental Properties LLC</strong><br>
+                        Professional Trucking & Logistics Services<br>
+                        © 2026 All rights reserved.
                     </p>
                 </div>
             </div>
@@ -254,64 +311,53 @@ class EmailService:
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Order Completed</title>
         </head>
-        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Order Completed!</h1>
-                <p style="color: #d4edda; margin: 10px 0 0 0; font-size: 16px;">Your shipment has been delivered successfully</p>
+        <body style="font-family: 'Inter', 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f8fafc;">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 20px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.025em;">🎉 Order Completed!</h1>
+                <p style="color: #d1fae5; margin: 12px 0 0 0; font-size: 18px; font-weight: 500;">Your shipment has been delivered successfully</p>
             </div>
             
-            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid #e9ecef; border-top: none;">
-                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;">
-                    <h2 style="margin: 0 0 10px 0; color: #28a745; font-size: 20px;">Order Number</h2>
-                    <p style="margin: 0; font-size: 32px; font-weight: bold; color: #1e3a5f; letter-spacing: 2px;">{order.get('order_number', 'N/A')}</p>
+            <div style="padding: 30px; background-color: #ffffff; border-radius: 0 0 16px 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="background: #ecfdf5; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #d1fae5; text-align: center;">
+                    <h2 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Order Number</h2>
+                    <p style="margin: 0; font-size: 36px; font-weight: 800; color: #1e3a8a; letter-spacing: 1px;">{order.get('order_number', 'N/A')}</p>
                 </div>
                 
-                <h3 style="color: #1e3a5f; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-bottom: 20px;">Shipment Summary</h3>
+                <h3 style="color: #0f172a; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 24px; font-size: 20px; font-weight: 700;">Shipment Summary</h3>
                 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600; width: 40%;">Customer Name</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333; font-weight: 500;">{order.get('customer_name', 'N/A')}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600; width: 40%;">Customer</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 500;">{order.get('customer_name', 'N/A')}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Email</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333;">{order.get('email', 'N/A')}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600;">Pickup</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 500;">{order.get('pickup_location', 'N/A')}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Pickup Location</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333; font-weight: 500;">{order.get('pickup_location', 'N/A')}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600;">Delivery</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 500;">{order.get('delivery_location', 'N/A')}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Delivery Location</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333; font-weight: 500;">{order.get('delivery_location', 'N/A')}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Goods Type</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333;">{order.get('goods_type', 'N/A')}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Order Date</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #333;">{created_at or 'N/A'}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #6c757d; font-weight: 600;">Completed Date</td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef; color: #28a745; font-weight: 600;">{updated_at or 'N/A'}</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600;">Completed Date</td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #059669; font-weight: 700;">{updated_at or 'N/A'}</td>
                     </tr>
                 </table>
                 
-                <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 20px;">
-                    <strong style="color: #155724;">✓ Status: Completed</strong>
-                    <p style="margin: 5px 0 0 0; color: #155724; font-size: 14px;">Your order has been successfully completed. Thank you for choosing Thanesgaylerental!</p>
+                <div style="background: #f0fdf4; padding: 20px; border-radius: 12px; border-left: 4px solid #10b981; margin-bottom: 32px;">
+                    <p style="margin: 0; color: #166534; font-weight: 700; font-size: 16px;">✓ Status: Successfully Delivered</p>
+                    <p style="margin: 8px 0 0 0; color: #15803d; font-size: 14px; line-height: 1.5;">Your shipment has been successfully delivered. We appreciate your business and hope to serve you again soon!</p>
                 </div>
                 
-                <p style="color: #6c757d; font-size: 14px; text-align: center; margin-top: 30px;">
-                    Thank you for trusting us with your shipment. We hope to serve you again soon!
+                <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 32px;">
+                    We would love to hear your feedback on our service.
                 </p>
                 
-                <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e9ecef;">
-                    <p style="color: #6c757d; font-size: 12px; margin: 0;">
-                        © 2024 Thanesgaylerental. All rights reserved.<br>
-                        Professional Trucking & Logistics Services
+                <div style="text-align: center; margin-top: 48px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                    <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.6;">
+                        <strong>Thanesgaylerental Properties LLC</strong><br>
+                        Professional Trucking & Logistics Services<br>
+                        © 2026 All rights reserved.
                     </p>
                 </div>
             </div>

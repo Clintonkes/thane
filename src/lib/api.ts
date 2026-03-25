@@ -46,8 +46,8 @@ export interface ContactMessage {
   phone?: string;
   subject: string;
   message: string;
-  is_read: boolean;
-  is_replied: boolean;
+  is_read?: boolean;
+  is_replied?: boolean;
   created_at: string;
 }
 
@@ -130,6 +130,10 @@ export const getTrucks = async (status?: string): Promise<Truck[]> => {
 };
 
 // Contact Messages
+export const getContactMessages = async (): Promise<ContactMessage[]> => {
+  return fetchAPI<ContactMessage[]>('/api/contact');
+};
+
 export const submitContactMessage = async (messageData: Partial<ContactMessage>) => {
   return fetchAPI<{ message: string; id: number }>('/api/contact', {
     method: 'POST',
@@ -251,15 +255,19 @@ export const updateOrderStatus = async (
   const token = getAdminToken();
   if (!token) throw new Error('Not authenticated');
   
-  return fetchAPI<{ message: string; order: Order }>(`/api/admin/orders/${id}/status`, {
+  // Build query params
+  const params = new URLSearchParams({
+    new_status: status,
+  });
+  if (assignedTruckId) {
+    params.append('assigned_truck_id', assignedTruckId.toString());
+  }
+  
+  return fetchAPI<{ message: string; order: Order }>(`/api/admin/orders/${id}/status?${params}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({ 
-      new_status: status,
-      assigned_truck_id: assignedTruckId
-    }),
   });
 };
 
@@ -278,17 +286,27 @@ export const registerAdmin = async (
 
 // ==================== ADMIN DASHBOARD API ====================
 
-// Dashboard Stats
+// Dashboard Stats - matches actual API response
 export interface DashboardStats {
-  total_orders: number;
-  completed_orders: number;
-  pending_orders: number;
-  in_progress_orders: number;
-  total_customers: number;
-  total_messages: number;
-  unread_messages: number;
-  blocked_ips: number;
-  failed_login_attempts: number;
+  orders: {
+    total: number;
+    pending: number;
+    assigned: number;
+    in_progress: number;
+    completed: number;
+    cancelled: number;
+  };
+  customers: {
+    unique: number;
+  };
+  messages: {
+    unread: number;
+    total: number;
+  };
+  security?: {
+    failed_logins_today: number;
+    blocked_ips: number;
+  };
 }
 
 export const getDashboardStats = async (): Promise<DashboardStats> => {

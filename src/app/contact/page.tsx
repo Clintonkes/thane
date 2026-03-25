@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { MapPin, Phone, Mail, Clock, Send, CheckCircle } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Send, CheckCircle, Loader2 } from "lucide-react";
 import { ScrollReveal } from "@/hooks/useAnimations";
+import { submitContactMessage } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 export default function ContactPage() {
+  const { showToast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -15,9 +19,26 @@ export default function ContactPage() {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitted(true);
+    setIsLoading(true);
+    
+    try {
+      await submitContactMessage({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.subject,
+        message: formData.message,
+      });
+      setIsSubmitted(true);
+      showToast("Message sent successfully!", "success");
+    } catch (error: any) {
+      console.error("Failed to submit message:", error);
+      showToast(error.message || "Failed to send message. Please try again.", "error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isSubmitted) {
@@ -85,7 +106,7 @@ export default function ContactPage() {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                      <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="input-field" placeholder="+1 (555) 123-4567" />
+                      <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="input-field" placeholder="+1 (917)547-8788" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
@@ -103,9 +124,15 @@ export default function ContactPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
                     <textarea value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} required rows={5} className="input-field" placeholder="How can we help you?" />
                   </div>
-                  <button type="submit" className="btn-accent w-full flex items-center justify-center space-x-2 group">
-                    <Send className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                    <span>Send Message</span>
+                  <button type="submit" disabled={isLoading} className="btn-accent w-full flex items-center justify-center space-x-2 group disabled:opacity-50">
+                    {isLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                        <span>Send Message</span>
+                      </>
+                    )}
                   </button>
                 </form>
               </div>
@@ -119,8 +146,8 @@ export default function ContactPage() {
                   <div className="space-y-6">
                     {[
                       { icon: MapPin, title: "Office Address", lines: ["123 Logistics Way", "Transport City, TC 12345"] },
-                      { icon: Phone, title: "Phone", lines: ["+1 (555) 123-4567", "+1 (555) 987-6543"] },
-                      { icon: Mail, title: "Email", lines: ["info@thanesgaylerental.com", "support@thanesgaylerental.com"] },
+                      { icon: Phone, title: "Phone", lines: ["+1 (917)547-8788"] },
+                      { icon: Mail, title: "Email", lines: ["gayleobrien88@gmail.com"] },
                       { icon: Clock, title: "Business Hours", lines: ["Monday - Friday: 8:00 AM - 6:00 PM", "Saturday: 9:00 AM - 2:00 PM", "24/7 Emergency Support"] },
                     ].map((item) => (
                       <div key={item.title} className="flex items-start space-x-4 group cursor-default p-3 rounded-xl hover:bg-gray-50 transition-colors duration-300">

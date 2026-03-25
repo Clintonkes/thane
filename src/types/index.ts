@@ -26,6 +26,10 @@ export interface Truck {
   image: string;
   status: 'available' | 'in_use' | 'maintenance';
   driver?: string;
+  lastMaintenance?: string;
+  nextService?: string;
+  location?: string;
+  fuelLevel?: string;
 }
 
 // Review types

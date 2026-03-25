@@ -282,7 +282,7 @@ export default function Home() {
               </Link>
               <div className="flex items-center justify-center space-x-2 text-white bg-white/10 backdrop-blur-sm px-6 py-4 rounded-lg">
                 <Phone className="h-5 w-5" />
-                <span className="font-medium">+1 (555) 123-4567</span>
+                <span className="font-medium">+1 (917)547-8788</span>
               </div>
             </div>
           </ScrollReveal>
@@ -298,8 +298,8 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { icon: MapPin, title: "Visit Us", text: "123 Logistics Way, Transport City" },
-              { icon: Phone, title: "Call Us", text: "+1 (555) 123-4567" },
-              { icon: Mail, title: "Email Us", text: "info@thanesgaylerental.com" },
+              { icon: Phone, title: "Call Us", text: "+1(917)547-8788" },
+              { icon: Mail, title: "Email Us", text: "gayleobrien88@gmail.com" },
             ].map((item, index) => (
               <ScrollReveal key={item.title} animation="reveal-up" delay={index * 0.1}>
                 <div className="flex items-center space-x-4 group cursor-default p-4 rounded-xl hover:bg-gray-50 transition-colors duration-300">

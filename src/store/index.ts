@@ -15,6 +15,10 @@ const sampleTrucks: Truck[] = [
     image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'available',
     driver: 'John Smith',
+    lastMaintenance: '2024-02-15',
+    nextService: '2024-05-15',
+    location: 'Main Depot',
+    fuelLevel: '85%',
   },
   {
     id: '2',
@@ -24,6 +28,10 @@ const sampleTrucks: Truck[] = [
     image: 'https://images.unsplash.com/photo-1580674684081-7617fbf3d745?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'available',
     driver: 'Mike Johnson',
+    lastMaintenance: '2024-01-20',
+    nextService: '2024-04-20',
+    location: 'North Station',
+    fuelLevel: '92%',
   },
   {
     id: '3',
@@ -33,6 +41,10 @@ const sampleTrucks: Truck[] = [
     image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'in_use',
     driver: 'David Brown',
+    lastMaintenance: '2024-03-01',
+    nextService: '2024-06-01',
+    location: 'En-route to Chicago',
+    fuelLevel: '45%',
   },
   {
     id: 't4',
@@ -42,6 +54,10 @@ const sampleTrucks: Truck[] = [
     image: 'https://images.unsplash.com/photo-1580674684081-7617fbf3d745?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'maintenance',
     driver: '',
+    lastMaintenance: '2024-03-20',
+    nextService: '2024-03-25',
+    location: 'Repair Center',
+    fuelLevel: '20%',
   },
   {
     id: 't5',
@@ -50,6 +66,10 @@ const sampleTrucks: Truck[] = [
     capacity: '26,000 lbs',
     image: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'maintenance',
+    lastMaintenance: '2024-03-22',
+    nextService: '2024-03-28',
+    location: 'Central Workshop',
+    fuelLevel: '15%',
   },
   {
     id: '6',
@@ -59,6 +79,10 @@ const sampleTrucks: Truck[] = [
     image: 'https://images.unsplash.com/photo-1580674684081-7617fbf3d745?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'available',
     driver: 'James Davis',
+    lastMaintenance: '2024-02-10',
+    nextService: '2024-05-10',
+    location: 'West Terminal',
+    fuelLevel: '78%',
   },
 ];
 

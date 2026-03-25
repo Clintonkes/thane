@@ -81,7 +81,7 @@ export default function TrackingPage() {
     setTrackedOrder(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const response = await fetch(`${apiUrl}/api/orders/track/${trackingId.trim()}`);
       
       if (!response.ok) {
@@ -111,7 +111,7 @@ export default function TrackingPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
         const response = await fetch(`${apiUrl}/api/orders/track/${orderNumber}`);
         if (!response.ok) {
           throw new Error("Order not found");
@@ -314,7 +314,11 @@ export default function TrackingPage() {
                   <div className="font-bold text-gray-800">{trackedOrder.cargo_weight || "Not specified"}</div>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <div className="text-sm font-semibold text-gray-400 mb-1 uppercase tracking-wider">Preferred Date</div>
+                  <div className="text-sm font-semibold text-gray-400 mb-1 uppercase tracking-wider">Cargo Size</div>
+                  <div className="font-bold text-gray-800">{trackedOrder.cargo_size || "Not specified"}</div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 md:col-span-2">
+                  <div className="text-sm font-semibold text-gray-400 mb-1 uppercase tracking-wider">Preferred Preferred Date/Time</div>
                   <div className="font-bold text-gray-800">{formatDate(trackedOrder.preferred_date)}</div>
                 </div>
               </div>

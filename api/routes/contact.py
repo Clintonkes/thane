@@ -1,12 +1,29 @@
 import logging
-from fastapi import APIRouter, Depends
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 from database.connection import SessionLocal, get_db
 from database.models import ContactMessage
-from database.schemas import ContactMessageCreate
+from database.schemas import ContactMessageCreate, ContactMessageResponse
 
 router = APIRouter(prefix="/api/contact", tags=["Contact"])
+
+@router.get("", response_model=List[ContactMessageResponse])
+async def get_contact_messages(
+    db: SessionLocal = Depends(get_db)
+):
+    """Get all contact messages"""
+    messages = db.query(ContactMessage).order_by(ContactMessage.created_at.desc()).all()
+    return messages
+
+@router.get("/unread-count")
+async def get_unread_count(
+    db: SessionLocal = Depends(get_db)
+):
+    """Get count of unread messages"""
+    count = db.query(ContactMessage).filter(ContactMessage.is_read == False).count()
+    return {"unread_count": count}
 
 @router.post("")
 async def create_contact_message(

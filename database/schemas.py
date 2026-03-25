@@ -49,6 +49,14 @@ class ContactMessageCreate(BaseModel):
     subject: str
     message: str
 
+class ContactMessageResponse(ContactMessageCreate):
+    id: int
+    is_read: bool
+    is_replied: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 class ReviewCreate(BaseModel):
     customer_name: str

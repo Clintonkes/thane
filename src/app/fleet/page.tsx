@@ -1,8 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Truck, CheckCircle, XCircle, AlertCircle, User } from "lucide-react";
-import { useStore } from "@/store";
+import { Truck as TruckIcon, CheckCircle, XCircle, AlertCircle, User, MapPin, Loader2 } from "lucide-react";
+import { getTrucks, Truck as TruckType } from "@/lib/api";
 import { ScrollReveal, CountUp } from "@/hooks/useAnimations";
 
 const statusColors: Record<string, string> = {
@@ -18,7 +19,22 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function FleetPage() {
-  const { trucks } = useStore();
+  const [trucks, setTrucks] = useState<TruckType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTrucks = async () => {
+      try {
+        const data = await getTrucks();
+        setTrucks(data);
+      } catch (error) {
+        console.error("Failed to fetch trucks:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTrucks();
+  }, []);
 
   const availableTrucks = trucks.filter((t) => t.status === "available").length;
   const inUseTrucks = trucks.filter((t) => t.status === "in_use").length;
@@ -81,53 +97,78 @@ export default function FleetPage() {
       {/* Fleet Grid */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {trucks.map((truck, index) => (
-              <ScrollReveal key={truck.id} animation="reveal-up" delay={(index % 3) * 0.1}>
-                <div className="card card-hover overflow-hidden group">
-                  <div className="relative h-56 overflow-hidden">
-                    <Image
-                      src={truck.image}
-                      alt={truck.type}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="absolute top-4 right-4 z-10 shadow-lg rounded-full">
-                      <span className={`px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm backdrop-blur-md ${statusColors[truck.status]}`}>
-                        {statusLabels[truck.status]}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold text-gray-800 group-hover:text-primary transition-colors">{truck.type}</h3>
-                      <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{truck.truckNumber}</span>
-                    </div>
-                    <div className="space-y-3 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Capacity</span>
-                        <span className="font-semibold text-gray-800">{truck.capacity}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm border-t border-gray-50 pt-2">
-                        <span className="text-gray-500">Driver</span>
-                        <span className="font-medium text-gray-800 flex items-center">
-                          {truck.driver ? (
-                            <>
-                              <User className="h-4 w-4 mr-1.5 text-primary" />
-                              {truck.driver}
-                            </>
-                          ) : (
-                            <span className="text-gray-400 italic">Unassigned</span>
-                          )}
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : trucks.length === 0 ? (
+            <div className="text-center py-12">
+              <TruckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No trucks available at the moment</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {trucks.map((truck, index) => (
+                <ScrollReveal key={truck.id} animation="reveal-up" delay={(index % 3) * 0.1}>
+                  <div className="card card-hover overflow-hidden group">
+                    <div className="relative h-56 overflow-hidden">
+                      <Image
+                        src={truck.image_url || "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"}
+                        alt={truck.truck_type}
+                        fill
+                        className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="absolute top-4 right-4 z-10 shadow-lg rounded-full">
+                        <span className={`px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm backdrop-blur-md ${statusColors[truck.status]}`}>
+                          {statusLabels[truck.status]}
                         </span>
                       </div>
                     </div>
+                    <div className="p-6 bg-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold text-gray-800 group-hover:text-primary transition-colors">{truck.truck_type}</h3>
+                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{truck.truck_number}</span>
+                      </div>
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          <div>
+                            <span className="text-gray-500 block">Capacity</span>
+                            <span className="font-semibold text-gray-800">{truck.capacity}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 block">Status</span>
+                            <span className="font-semibold text-gray-800">{statusLabels[truck.status]}</span>
+                          </div>
+                          <div className="col-span-2 mt-1 pt-2 border-t border-gray-50">
+                            <span className="text-gray-500 block">Truck Number</span>
+                            <div className="flex items-center text-primary font-medium">
+                              <TruckIcon className="h-3 w-3 mr-1" />
+                              {truck.truck_number}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm border-t border-gray-50 pt-3">
+                          <span className="text-gray-500">Driver</span>
+                          <span className="font-medium text-gray-800 flex items-center">
+                            {truck.driver_name ? (
+                              <>
+                                <User className="h-4 w-4 mr-1.5 text-primary" />
+                                {truck.driver_name}
+                              </>
+                            ) : (
+                              <span className="text-gray-400 italic">Unassigned</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </ScrollReveal>
-            ))}
-          </div>
+                </ScrollReveal>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

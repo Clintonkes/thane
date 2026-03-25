@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, Truck, Bell } from "lucide-react";
+import { Menu, X, Truck, Bell, Search, MapPin } from "lucide-react";
 import { useStore } from "@/store";
 
 const navLinks = [
@@ -67,54 +67,18 @@ export function Navbar() {
 
                     {/* Notification Bell & Mobile Menu */}
                     <div className="flex items-center space-x-3">
-                        {/* Notification Bell */}
+                        {/* Search icon (Redirects to Tracking) */}
                         <div className="relative">
                             <button
-                                onClick={() => setShowNotifications(!showNotifications)}
+                                onClick={() => window.location.href = "/tracking"}
                                 className={`p-2 rounded-lg transition-all duration-300 relative ${isScrolled
                                         ? "text-gray-700 hover:bg-gray-100"
                                         : "text-white hover:bg-white/10"
                                     }`}
+                                title="Track Order"
                             >
-                                <Bell className="h-5 w-5" />
-                                {unreadCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                        {unreadCount}
-                                    </span>
-                                )}
+                                <Search className="h-5 w-5" />
                             </button>
-
-                            {/* Notification Dropdown */}
-                            {showNotifications && (
-                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl overflow-hidden animate-slide-down">
-                                    <div className="p-3 border-b border-gray-100">
-                                        <h3 className="font-semibold text-gray-800">Notifications</h3>
-                                    </div>
-                                    <div className="max-h-64 overflow-y-auto">
-                                        {notifications.length === 0 ? (
-                                            <p className="p-4 text-gray-500 text-center text-sm">
-                                                No notifications yet
-                                            </p>
-                                        ) : (
-                                            notifications.slice(0, 5).map((notif) => (
-                                                <div
-                                                    key={notif.id}
-                                                    onClick={() => markNotificationRead(notif.id)}
-                                                    className={`p-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 ${!notif.read ? "bg-blue-50" : ""
-                                                        }`}
-                                                >
-                                                    <p className="font-medium text-sm text-gray-800">
-                                                        {notif.title}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500 mt-1">
-                                                        {notif.message}
-                                                    </p>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                         {/* CTA Button */}

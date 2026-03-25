@@ -54,8 +54,15 @@ def init_db():
     Creates all tables defined in models if they don't exist.
     """
     import database.models as models
+    from sqlalchemy import text
     logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE trucks ALTER COLUMN image_url TYPE text;"))
+        logger.info("Database schemas confirmed.")
+    except Exception as e:
+        logger.warning(f"Note: alter table syntax error or unneeded - {e}")
     logger.info("Database tables initialized successfully!")
 
 

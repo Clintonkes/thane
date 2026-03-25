@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
-import { ChatWidget } from "@/components/ChatWidget";
+import { ConditionalFooter } from "@/components/ConditionalFooter";
 import { NotificationProvider } from "@/components/NotificationProvider";
-import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
@@ -25,9 +23,7 @@ export default function RootLayout({
           <ToastProvider>
             <Navbar />
             <main className="flex-grow">{children}</main>
-            <Footer />
-            <ChatWidget />
-            <WhatsAppButton />
+            <ConditionalFooter />
           </ToastProvider>
         </NotificationProvider>
       </body>

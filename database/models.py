@@ -94,7 +94,7 @@ class Truck(Base):
     truck_number = Column(String(50), unique=True, index=True, nullable=False)
     truck_type = Column(String(100), nullable=False)
     capacity = Column(String(100), nullable=False)
-    image_url = Column(String(500))
+    image_url = Column(Text)
     
     # Status & Driver
     status = Column(Enum(TruckStatus), default=TruckStatus.AVAILABLE, nullable=False)

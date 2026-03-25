@@ -230,8 +230,8 @@ export default function BookingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-3 gap-8 text-center">
             {[
-              { icon: Phone, title: "Phone", text: "+1 (555) 123-4567" },
-              { icon: Mail, title: "Email", text: "info@thanesgaylerental.com" },
+              { icon: Phone, title: "Phone", text: "+1 (917)547-8788" },
+              { icon: Mail, title: "Email", text: "gayleobrien@gmail.com" },
               { icon: Truck, title: "Response Time", text: "Within 24 hours" },
             ].map((item, index) => (
               <ScrollReveal key={item.title} animation="reveal-up" delay={index * 0.1}>
